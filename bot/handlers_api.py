@@ -27,7 +27,7 @@ class Form(StatesGroup):
     otp = State()
     token = State()
 
-@dp.message_handler(commands=['start'])
+@dp.message_handler(commands=["start"])
 async def start_message(message: types.Message, state: FSMContext) -> None:
     """welcome message."""
     logger.info(message)
@@ -94,8 +94,8 @@ async def alter_lang(callback_query: types.CallbackQuery) -> None:
     await bot.send_message(callback_query.from_user.id, "Choose language:")
 
 # You can use state '*' if you need to handle all states
-@dp.message_handler(state='*', commands='cancel')
-@dp.message_handler(Text(equals='cancel', ignore_case=True), state='*')
+@dp.message_handler(state="*", commands="cancel")
+@dp.message_handler(Text(equals="cancel", ignore_case=True), state="*")
 async def cancel_handler(message: types.Message, state: FSMContext):
     """
     Allow user to cancel any action

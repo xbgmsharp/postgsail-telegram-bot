@@ -2,7 +2,7 @@ from aiogram import Dispatcher
 from aiogram.utils import executor
 from bot.commands import set_default_commands
 #from bot.loader import db
-from bot.loader import api
+#from bot.loader import api
 from bot.loader import dp
 from loguru import logger
 
