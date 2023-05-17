@@ -5,11 +5,18 @@ EXPOSE 8081/tcp
 WORKDIR /usr/src/app
 COPY . .
 
+#RUN apt update && \
+#    apt -qy upgrade && \
+#    python -m pip install --upgrade pip && \
+#    python -m pip install poetry && \
+#    poetry install && \
+#    apt-get -y remove build-essential curl && apt-get -y autoremove --purge && apt-get -y clean && \
+#    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /var/cache/apt
+
 RUN apt update && \
     apt -qy upgrade && \
     python -m pip install --upgrade pip && \
-    python -m pip install aiogram simplejson asyncio uvloop python-dotenv loguru requests emoji && \
-    python -m pip install requests simplejson loguru aiohttp asyncio aiogram uvloop typing python-dotenv && \
+    python -m pip install aiogram asyncio aiohttp typing uvloop python-dotenv loguru emoji && \
     apt-get -y remove build-essential curl && apt-get -y autoremove --purge && apt-get -y clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /var/cache/apt
 
