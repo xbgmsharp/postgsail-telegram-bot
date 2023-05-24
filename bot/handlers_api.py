@@ -10,7 +10,8 @@ from bot.loader import bot
 from bot.loader import dp
 from loguru import logger
 
-import aiogram.utils.markdown as md
+
+# import aiogram.utils.markdown as md
 
 
 # States
@@ -195,7 +196,7 @@ async def process_otp(message: types.Message, state: FSMContext):
         # Validate OTP Code - Make request
         json = await api.otp_validation(payload)
 
-        if json == True:
+        if json is True:
             print("Send OK response")
             async with state.proxy() as data:
                 data["token"] = await api.token(message.from_user.id)
@@ -233,9 +234,9 @@ async def give_boat_details(message: types.Message, state: FSMContext) -> None:
         print("data", data)
         current_state = await state.get_state()
         print("current_state1", current_state)
-        if not "token" in data:
+        if "token" not in data:
             print("unknow session, start_message")
-            token = await start_message(message, state)
+            await start_message(message, state)
             async with state.proxy() as data2:
                 print("data2", data2)
                 print(data2["token"])
@@ -268,7 +269,7 @@ async def give_boat_details(message: types.Message, state: FSMContext) -> None:
                 md.text("lastContact:", md.bold(json["last_contact"])),
                 sep="\n",
             ),
-            # reply_markup=markup,
+            reply_markup=markup,
             parse_mode=ParseMode.MARKDOWN,
         )
 
@@ -286,7 +287,7 @@ async def give_monitoring_details(message: types.Message, state: FSMContext) -> 
         print("data", data)
         current_state = await state.get_state()
         print("current_state1", current_state)
-        if not "token" in data:
+        if "token" not in data:
             print("unknow session, start_message")
             await start_message(message, state)
             async with state.proxy() as data2:
@@ -321,7 +322,7 @@ async def give_monitoring_details(message: types.Message, state: FSMContext) -> 
                 output,
                 sep="\n",
             ),
-            # reply_markup=markup,
+            reply_markup=markup,
             parse_mode=ParseMode.MARKDOWN,
         )
 
