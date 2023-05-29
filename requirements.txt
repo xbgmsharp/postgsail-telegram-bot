@@ -6,4 +6,4 @@ python-dotenv==1.0.0
 python-telegram-bot==20.3
 simplejson==3.19.1
 uvloop==0.17.0
-emoji==2.2.0
+emoji==2.4.0
