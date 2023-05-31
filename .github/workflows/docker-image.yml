@@ -2,9 +2,11 @@ name: Docker Image CI
 
 on:
   push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
+  #  branches: [ "main" ]
+    tags:
+      - "*"
+  #pull_request:
+  #  branches: [ "main" ]
   schedule:
     # we build monthly at 00:00 on day-of-month 1
     #- cron:  '0 0 1 * *'
