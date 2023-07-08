@@ -7,6 +7,17 @@ Telegram allow private and group notification.
 
 ## 🚀 Getting Started
 
+### Cloud development
+
+### full-featured development environment
+Docker container as a full-featured development environment.
+
+#### With codesandbox
+- https://codesandbox.io/p/github/xbgmsharp/postgsail-telegram-bot/main
+
+#### With DevPod
+- https://devpod.sh/open#https://github.com/xbgmsharp/postgsail-telegram-bot&workspace=postgsail&provider=docker&ide=openvscode
+
 ### Running on Local Machine
 
 - install dependencies using [Poetry](https://python-poetry.org "python package manager")
@@ -43,14 +54,7 @@ Telegram allow private and group notification.
 | variables         | description |
 |:-----------------:| ----------- |
 | `BOT_TOKEN`       | Telegram bot API token |
-| `PG_HOST`         | hostname or an IP address PostgreSQL database |
-| `PG_NAME`         | the name of the PostgreSQL database |
-| `PG_PASSWORD`     | password used to authenticate |
-| `PG_PORT`         | connection port number (defaults to 5432 if not provided) |
-| `PG_USER`         | the username used to authenticate |
-| `REDIS_HOST`      | hostname or an IP address Redis database |
-| `REDIS_PASSWORD`  | Redis database password, empty by default |
-| `REDIS_PORT`      | port from Redis database |
+| `PGSAIL_URL`      | PostgSail API url |
 
 > *I use Redis for Finite State Machine, and PostgreSQL as Database*
 
