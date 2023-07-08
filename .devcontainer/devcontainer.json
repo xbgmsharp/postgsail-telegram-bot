@@ -1,5 +1,5 @@
 {
-	"name": "PostgSail",
+	"name": "PostgSail Telegram Bot",
 	"image": "mcr.microsoft.com/devcontainers/python",
   
 	// Use this environment variable if you need to bind mount your local source code into a new container.
