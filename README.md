@@ -16,7 +16,7 @@ Docker container as a full-featured development environment.
 - https://codesandbox.io/p/github/xbgmsharp/postgsail-telegram-bot/main
 
 #### With DevPod
-- https://devpod.sh/open#https://github.com/xbgmsharp/postgsail-telegram-bot&workspace=postgsail&provider=docker&ide=openvscode
+- https://devpod.sh/open#https://github.com/xbgmsharp/postgsail-telegram-bot&workspace=postgsail-telegram-bot&provider=docker&ide=openvscode
 
 ### Running on Local Machine
 
