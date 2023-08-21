@@ -9,14 +9,17 @@ Telegram allow private and group notification.
 
 ### Cloud development
 
-### full-featured development environment
-Docker container as a full-featured development environment.
+A full-featured development environment.
 
-#### With codesandbox
-- https://codesandbox.io/p/github/xbgmsharp/postgsail-telegram-bot/main
+#### With CodeSandbox
+
+- Develop on [![CodeSandbox Ready-to-Code](https://img.shields.io/badge/CodeSandbox-Ready--to--Code-blue?logo=codesandbox)](https://codesandbox.io/p/github/xbgmsharp/postgsail-telegram-bot/main)
+  - or via [direct link](https://codesandbox.io/p/github/xbgmsharp/postgsail-telegram-bot/main)
 
 #### With DevPod
-- https://devpod.sh/open#https://github.com/xbgmsharp/postgsail-telegram-bot&workspace=postgsail-telegram-bot&provider=docker&ide=openvscode
+
+- [![Open in DevPod!](https://devpod.sh/assets/open-in-devpod.svg)](https://devpod.sh/open#https://github.com/xbgmsharp/postgsail-telegram-bot/&workspace=postgsail-telegram-bot&provider=docker&ide=openvscode)
+  - or via [direct link](https://devpod.sh/open#https://github.com/xbgmsharp/postgsail-telegram-bot&workspace=postgsail-telegram-bot&provider=docker&ide=openvscode)
 
 ### Running on Local Machine
 
