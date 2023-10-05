@@ -7,3 +7,4 @@
 !/.env
 !/poetry.lock
 !/pyproject.toml
+!/requirements.txt
