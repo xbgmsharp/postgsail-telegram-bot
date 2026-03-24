@@ -1,4 +1,4 @@
-FROM python:3.13-slim
+FROM python:3.10-slim
 
 EXPOSE 8081/tcp
 
@@ -18,7 +18,7 @@ COPY . .
 RUN apt update && \
     apt -qy upgrade && \
     python -m pip install --upgrade pip && \
-    python -m pip install -r requirements.txt && \
+    python -m pip install --no-cache-dir -r requirements.txt && \
     apt-get -y remove build-essential curl && apt-get -y autoremove --purge && apt-get -y clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /var/cache/apt
 
