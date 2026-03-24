@@ -59,9 +59,6 @@ A full-featured development environment.
 | `BOT_TOKEN`       | Telegram bot API token |
 | `PGSAIL_URL`      | PostgSail API url |
 
-> *I use Redis for Finite State Machine, and PostgreSQL as Database*
-
-
 ## 🔧 Tech Stack
 
 - `aiogram` — asynchronous framework for Telegram Bot API
@@ -71,8 +68,6 @@ A full-featured development environment.
 - `loguru` — third party library for logging in Python
 - `docker` — to automate deployment
 - `postgres` — powerful, open source object-relational database system
-- `redis` — an in-memory data structure store
-
 
 ## 👷🏾 Contributing
 
