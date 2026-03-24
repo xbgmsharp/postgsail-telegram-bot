@@ -16,6 +16,8 @@ import uvloop  # running only linux
 load_dotenv()
 asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 token = os.getenv("BOT_TOKEN")
+if token is None:
+    raise ValueError("BOT_TOKEN is not set in environment variables")
 bot = Bot(token=token, parse_mode="html")
 loop = asyncio.get_event_loop()
 # storage = RedisStorage2(os.getenv("REDIS_HOST"), os.getenv("REDIS_PORT"), db=5)
@@ -32,3 +34,5 @@ dp = Dispatcher(bot, loop=loop, storage=storage)
 #    pool=None,
 # )
 api = API(url=os.getenv("PGSAIL_URL"))
+if api.url is None:
+    raise ValueError("PGSAIL_URL is not set in environment variables")
