@@ -235,7 +235,7 @@ async def give_boat_details(message: types.Message, state: FSMContext) -> None:
         current_state = await state.get_state()
         print("current_state1", current_state)
         if "token" not in data:
-            print("unknow session, start_message")
+            print("unknown session, start_message")
             await start_message(message, state)
             async with state.proxy() as data2:
                 print("data2", data2)
