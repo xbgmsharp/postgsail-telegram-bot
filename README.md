@@ -28,7 +28,9 @@ A full-featured development environment.
     poetry install
     ```
 - configure environment variables in `.env` file
-
+    ```
+    cp .env.sample .env
+    ```
 - start bot in virtual environment
     ```
     poetry run python -m bot
