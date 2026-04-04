@@ -1,6 +1,6 @@
 # PostgSail Telegram Bot
 
-A Telegram bot for [PostgSail](https://postgsail.com) that uses Mistral AI and the Model Context Protocol (MCP) to answer natural language queries about your vessel.
+A Telegram bot for [PostgSail](https://xbgmsharp.github.io/postgsail/) that uses Mistral AI and the Model Context Protocol (MCP) to answer natural language queries about your vessel.
 
 ## Quick start
 
@@ -16,7 +16,7 @@ npm run dev
 | Variable | Description |
 |---|---|
 | `TELEGRAM_BOT_TOKEN` | Telegram bot token from BotFather (**required**) |
-| `POSTGSAIL_API_URL` | PostgSail API base URL (e.g. `https://api.postgsail.com`) (**required**) |
+| `POSTGSAIL_API_URL` | PostgSail API base URL (e.g. PostgREST instance) (**required**) |
 | `POSTGSAIL_WEB_URL` | PostgSail web app URL (**required**) |
 | `POSTGSAIL_MCP_URL` | MCP server endpoint — if unset, natural language queries are disabled |
 | `MISTRAL_API_KEY` | Mistral AI API key |
@@ -40,7 +40,7 @@ npm run watch     # Watch mode for incremental compilation
 | `/logs` | Trip logs |
 | `/moorages` | Moorages |
 | `/stays` | Stays |
-| `/settings` | User settings |
+| `/settings` | User profile |
 | `/help` | Show help |
 | `/cancel` | Cancel current operation |
 
