@@ -1,95 +1,93 @@
-<h1 align="center"><em>PostgSail Telegram bot.</em></h1>
+# PostgSail Telegram Bot
 
-Basic telegram bot to interact with [PostgSail](https://github.com/xbgmsharp/signalk-postgsail) and mostly to register user for telegram notification.
+A Telegram bot for [PostgSail](https://postgsail.com) that uses Mistral AI and the Model Context Protocol (MCP) to answer natural language queries about your vessel.
 
-Telegram allow private and group notification.
+## Quick start
 
+```bash
+cp .env.example .env
+# Edit .env with your credentials
+npm install
+npm run dev
+```
 
-## 🚀 Getting Started
+## Environment variables
 
-### Cloud development
+| Variable | Description |
+|---|---|
+| `TELEGRAM_BOT_TOKEN` | Telegram bot token from BotFather (**required**) |
+| `POSTGSAIL_API_URL` | PostgSail API base URL (e.g. `https://api.postgsail.com`) (**required**) |
+| `POSTGSAIL_WEB_URL` | PostgSail web app URL (**required**) |
+| `POSTGSAIL_MCP_URL` | MCP server endpoint — if unset, natural language queries are disabled |
+| `MISTRAL_API_KEY` | Mistral AI API key |
 
-A full-featured development environment.
+## Commands
 
-#### With CodeSandbox
+```bash
+npm run dev       # Run with ts-node (no build required)
+npm run build     # Compile TypeScript to dist/
+npm start         # Run compiled output from dist/
+npm run watch     # Watch mode for incremental compilation
+```
 
-- Develop on [![CodeSandbox Ready-to-Code](https://img.shields.io/badge/CodeSandbox-Ready--to--Code-blue?logo=codesandbox)](https://codesandbox.io/p/github/xbgmsharp/postgsail-telegram-bot/main)
-  - or via [direct link](https://codesandbox.io/p/github/xbgmsharp/postgsail-telegram-bot/main)
+## Bot commands
 
-#### With DevPod
+| Command | Description |
+|---|---|
+| `/start` | Start bot / show menu |
+| `/boat` | Vessel information |
+| `/monitoring` | Live monitoring data |
+| `/logs` | Trip logs |
+| `/moorages` | Moorages |
+| `/stays` | Stays |
+| `/settings` | User settings |
+| `/help` | Show help |
+| `/cancel` | Cancel current operation |
 
-- [![Open in DevPod!](https://devpod.sh/assets/open-in-devpod.svg)](https://devpod.sh/open#https://github.com/xbgmsharp/postgsail-telegram-bot/&workspace=postgsail-telegram-bot&provider=docker&ide=openvscode)
-  - or via [direct link](https://devpod.sh/open#https://github.com/xbgmsharp/postgsail-telegram-bot&workspace=postgsail-telegram-bot&provider=docker&ide=openvscode)
+Free-text messages are handled as natural language queries. Examples:
 
-### Running on Local Machine
+- "Where is my boat?"
+- "Show me my last trip"
+- "What's my battery voltage?"
+- "List recent moorages"
 
-- install dependencies using [Poetry](https://python-poetry.org "python package manager")
-    ```
-    poetry install
-    ```
-- configure environment variables in `.env` file
-    ```
-    cp .env.sample .env
-    ```
-- start bot in virtual environment
-    ```
-    poetry run python -m bot
-    ```
+## Architecture
 
-### Launch in Docker
+The bot connects three systems: **Telegram** (user interface) → **Mistral AI** (reasoning) → **PostgSail MCP server** (data).
 
-- configure environment variables in `.env` file
+```
+src/
+  bot/
+    index.ts          # Entry point: bot setup, command registration, middleware stack
+    commands/         # One file per slash command (boat, monitoring, logs, moorages, stays, settings)
+    scenes/
+      auth.scene.ts   # Multi-step auth flow (email → OTP → JWT)
+  orchestration/
+    agent.ts          # OrchestrationAgent: agentic loop using Mistral + MCP tools
+  mcp/
+    client.ts         # MCPClient: JSON-RPC 2.0 over HTTP to the MCP server
+  api/
+    client.ts         # ApiClient: REST calls to PostgSail API (verification, etc.)
+  types/
+    context.ts        # MyContext / SessionData types for Telegraf
+  utils/
+    errors.ts         # AuthError class, clearSession, getUserFriendlyError
+    logger.ts         # Leveled logger utility
+    typing.ts         # TypingIndicator: sends periodic typing action during long ops
+    format.ts         # Formatting helpers
+    retry.ts          # Retry utilities
+```
 
-- start virtual environment
-    ```
-    poetry shell
-    ```
-- building the docker image
-    ```
-    docker-compose build
-    ```
-- start service
-    ```
-    docker-compose up -d
-    ```
+### Key flows
 
+**Authentication:** Every command calls `ensureAuthenticated()` before executing. This checks the in-memory session token (cached for 30 min), then falls back to `apiClient.verification(chatId)`. New users enter the `auth` scene (email → OTP). On `AuthError` mid-request, `withAuthRetry()` silently refreshes the JWT once and retries.
 
-## 🌍 Environment variables
+**Natural language queries:** Free-text messages go to `OrchestrationAgent.processQuery()`. This runs a max-5-step agentic loop: Mistral selects which MCP tool to call, the result is appended to history, then Mistral summarizes the collected data into a Markdown Telegram message.
 
-| variables         | description |
-|:-----------------:| ----------- |
-| `BOT_TOKEN`       | Telegram bot API token |
-| `PGSAIL_URL`      | PostgSail API url |
+**MCP client:** `MCPClient` uses JSON-RPC 2.0 over stateless HTTP POST. It lazily initializes the MCP session on first use and passes the user's JWT as a Bearer token so the MCP server can enforce per-user data access.
 
-## 🔧 Tech Stack
+**Session:** In-memory Telegraf session stores `token`, `tokenTimestamp`, `authenticated`, `language`, and `awaitingInput`. There is no persistent session store — sessions reset on bot restart.
 
-- `aiogram` — asynchronous framework for Telegram Bot API
-- `aiohttp` - Asynchronous HTTP Client/Server for asyncio and Python.
-- `asyncpg` — asynchronous PostgreSQL database client library
-- `poetry` — development workflow
-- `loguru` — third party library for logging in Python
-- `docker` — to automate deployment
-- `postgres` — powerful, open source object-relational database system
-
-## 👷🏾 Contributing
-
-First off, thanks for taking the time to contribute! Contributions are what makes the open-source community such an amazing place to learn, inspire, and create. Any contributions you make will benefit everybody else and are greatly appreciated.
-
-If you have a suggestion that would make this better, please fork the repo and create a pull request. You can also simply open an issue with the tag "enhancement". Don't forget to give the project a star! Thanks again!
-
-1. `Fork` this repository
-2. Create a `branch`
-3. `Commit` your changes
-4. `Push` your `commits` to the `branch`
-5. Submit a `pull request`
-
-
-
-## 📝 License
+## License
 
 Distributed under the GPL-3.0 license. See `LICENSE` for more information.
-
-
-## 📢 Contact
-
-[donbarbos](https://github.com/donBarbos): donbarbos@proton.me

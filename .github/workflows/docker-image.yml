@@ -43,8 +43,4 @@ jobs:
           context: .
           platforms: linux/amd64,linux/arm64
           push: false
-          load: true
           tags: xbgmsharp/postgsail-telegram-bot:latest
-#    - name: Build the Docker image
-#      run: docker build . --file Dockerfile --tag xbgmsharp/postgsail-telegram-bot
-##      run: docker build . --file Dockerfile --tag xbgmsharp/postgsail-telegram-bot:$(date +%s)

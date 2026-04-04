@@ -1,0 +1,43 @@
+{
+  "name": "postgsail-telegram-bot",
+  "version": "0.3.0",
+  "description": "Telegram bot for PostgSail with MCP and Mistral AI",
+  "main": "dist/bot/index.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "ts-node-dev --respawn --transpile-only src/bot/index.ts",
+    "start": "node dist/bot/index.js",
+    "lint": "eslint src/**/*.ts",
+    "watch": "tsc --watch",
+    "clean": "rm -rf dist",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "keywords": [
+    "signalk",
+    "telegram",
+    "bot",
+    "postgsail",
+    "mcp",
+    "model context protocol",
+    "mistral"
+  ],
+  "author": "Francois Lacroix <xbgmsharp@gmail.com>",
+  "license": "MIT",
+  "dependencies": {
+    "@mistralai/mistralai": "^2.1.2",
+    "dotenv": "^16.4.5",
+    "telegraf": "^4.16.3",
+    "uuid": "^10.0.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^22.0.0",
+    "@types/uuid": "^10.0.0",
+    "ts-node": "^10.9.2",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.57.2",
+    "vitest": "^4.1.2"
+  }
+}

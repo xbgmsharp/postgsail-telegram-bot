@@ -1,12 +1,15 @@
 {
 	"name": "PostgSail Telegram Bot",
-	"image": "mcr.microsoft.com/devcontainers/python",
+	"image": "mcr.microsoft.com/devcontainers/node",
   
 	// Use this environment variable if you need to bind mount your local source code into a new container.
 	"remoteEnv": {
 	  "LOCAL_WORKSPACE_FOLDER": "${localWorkspaceFolder}",
-	  "BOT_TOKEN": "${localEnv:BOT_TOKEN}",
-	  "PGSAIL_URL": "${localEnv:PGSAIL_URL}"
+	  "TELEGRAM_BOT_TOKEN": "${localEnv:TELEGRAM_BOT_TOKEN}",
+	  "POSTGSAIL_API_URL": "${localEnv:POSTGSAIL_API_URL}",
+	  "POSTGSAIL_MCP_URL": "${localEnv:POSTGSAIL_MCP_URL}",
+	  "MISTRAL_API_KEY": "${localEnv:MISTRAL_API_KEY}",
+	  "POSTGSAIL_WEB_URL": "${localEnv:POSTGSAIL_WEB_URL}"
 	},
 	"containerEnv": {
 	  //"GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}",
@@ -25,7 +28,7 @@
   
 	// Use 'postCreateCommand' to run commands after the container is created.
 	// "postCreateCommand": "docker --version",
-	"postCreateCommand": "pipx install poetry && poetry install",
+	"postCreateCommand": "npm install --include dev",
   
 	// Uncomment to connect as root instead. More info: https://aka.ms/dev-containers-non-root.
 	// "remoteUser": "root"
