@@ -2,9 +2,11 @@
 **
 
 # exclusion
-!/bot/
+!/src/
 
 !/.env
 !/poetry.lock
-!/pyproject.toml
-!/requirements.txt
+!/package*.json
+!/tsconfig.json
+!/eslint.config.js
+!/prettier.config.js
