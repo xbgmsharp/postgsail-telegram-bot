@@ -5,7 +5,7 @@ on:
     branches: [ python3.11 ]
   pull_request:
     branches: [ python3.11 ]
-  schedule:
+  #schedule:
     # we build monthly at 00:00 on day-of-month 1
     #- cron:  '0 0 1 * *'
     # we build weekly at 00:01 on Sunday.
