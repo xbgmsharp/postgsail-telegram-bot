@@ -2,16 +2,16 @@ name: Docker Image CI
 
 on:
   push:
-  #  branches: [ "main" ]
+    branches: [ "python3.11" ]
     tags:
       - "*"
   #pull_request:
-  #  branches: [ "main" ]
+  #  branches: [ "python3.11" ]
   schedule:
     # we build monthly at 00:00 on day-of-month 1
     #- cron:  '0 0 1 * *'
     # we build weekly at 00:00 on Sunday.
-    - cron:  '0 0 * * 0'
+    #- cron:  '0 0 * * 0'
 
 jobs:
   docker:
@@ -43,8 +43,5 @@ jobs:
           context: .
           platforms: linux/amd64,linux/arm64
           push: false
-          load: true
-          tags: xbgmsharp/postgsail-telegram-bot:latest
-#    - name: Build the Docker image
-#      run: docker build . --file Dockerfile --tag xbgmsharp/postgsail-telegram-bot
-##      run: docker build . --file Dockerfile --tag xbgmsharp/postgsail-telegram-bot:$(date +%s)
+          #load: true
+          tags: xbgmsharp/postgsail-telegram-bot:python

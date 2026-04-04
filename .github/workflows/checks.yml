@@ -2,14 +2,14 @@ name: Checks
 
 on:
   push:
-    branches: [ main ]
+    branches: [ python3.11 ]
   pull_request:
-    branches: [ main ]
+    branches: [ python3.11 ]
   schedule:
     # we build monthly at 00:00 on day-of-month 1
     #- cron:  '0 0 1 * *'
     # we build weekly at 00:01 on Sunday.
-    - cron:  '1 0 * * 0'
+    # - cron:  '1 0 * * 0'
 
 jobs:
   checks:
