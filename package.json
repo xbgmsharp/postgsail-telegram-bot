@@ -25,7 +25,7 @@
   "author": "Francois Lacroix <xbgmsharp@gmail.com>",
   "license": "MIT",
   "dependencies": {
-    "@mistralai/mistralai": "^2.1.2",
+    "@mistralai/mistralai": "^2.2.1",
     "dotenv": "^16.4.5",
     "telegraf": "^4.16.3",
     "uuid": "^10.0.0"
