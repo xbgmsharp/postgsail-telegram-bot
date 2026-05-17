@@ -192,9 +192,19 @@ export class ApiClient {
     return this.requestRPC('rpc/vessel_fn');
   }
 
+  async getVesselActivity() {
+    logger.info('Fetching vessel activity');
+    return this.requestRPC('rpc/vessel_activity_fn');
+  }
+
   async getProfile() {
     logger.info('Fetching profile');
     return this.requestRPC('rpc/profile_fn');
+  }
+
+  async getBadges() {
+    logger.info('Fetching badges');
+    return this.requestRPC('rpc/badges_fn');
   }
 
   async getLogs(filters: {
@@ -215,7 +225,7 @@ export class ApiClient {
     if (filters.tags?.length) queryFilters.push(`tags=cs.[${JSON.stringify(filters.tags)}]`);
     if (queryFilters.length) query += `&${queryFilters.join('&')}`;
 
-    return this.request(query, { headers: { Prefer: 'count=estimated' } });
+    return this.request(query, { headers: { Prefer: 'count=exact' } });
   }
 
   async getLog(id: string) {
@@ -256,7 +266,7 @@ export class ApiClient {
     if (stayTypeId !== undefined && stayTypeId !== -1) {
       query += `&default_stay_id=eq.${stayTypeId}`;
     }
-    return this.request(query, { headers: { Prefer: 'count=estimated' } });
+    return this.request(query, { headers: { Prefer: 'count=exact' } });
   }
 
   async getStays(filters: {
@@ -279,7 +289,7 @@ export class ApiClient {
     }
     if (queryFilters.length) query += `&${queryFilters.join('&')}`;
 
-    return this.request(query, { headers: { Prefer: 'count=estimated' } });
+    return this.request(query, { headers: { Prefer: 'count=exact' } });
   }
 
   async getMonitoring() {
@@ -292,18 +302,33 @@ export class ApiClient {
     return this.request('monitoring_live');
   }
 
+  async getMonitoringHistory() {
+    logger.info('Fetching historical monitoring data');
+    return this.requestRPC('rpc/monitoring_history_fn');
+  }
+
+  async getStats() {
+    logger.info('Fetching statistics');
+    return this.requestRPC('rpc/stats_fn');
+  }
+
   async getStatsLogs() {
     logger.info('Fetching log statistics');
-    return this.request('stats_logs_view');
+    return this.requestRPC('rpc/graph_stats_logs_fn');
+  }
+
+  async getLogsByDay() {
+    logger.info('Fetching logs by day');
+    return this.requestRPC('rpc/graph_logs_by_day_fn');
   }
 
   async getLogsByMonth() {
     logger.info('Fetching logs by month');
-    return this.requestRPC('rpc/logs_by_month_fn');
+    return this.requestRPC('rpc/graph_logs_by_month_fn');
   }
 
   async getLogsByWeek() {
     logger.info('Fetching logs by week');
-    return this.requestRPC('rpc/logs_by_week_fn');
+    return this.requestRPC('rpc/graph_logs_by_week_fn');
   }
 }
