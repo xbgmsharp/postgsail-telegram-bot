@@ -28,6 +28,7 @@ logger.info(`POSTGSAIL_API_URL: ${process.env.POSTGSAIL_API_URL || 'NOT SET'}`);
 logger.info(`POSTGSAIL_WEB_URL: ${process.env.POSTGSAIL_WEB_URL || 'NOT SET'}`);
 logger.info(`POSTGSAIL_MCP_URL: ${process.env.POSTGSAIL_MCP_URL || 'NOT SET (MCP disabled)'}`);
 logger.info(`MISTRAL_API_KEY: ${process.env.MISTRAL_API_KEY ? '✅ Set' : '❌ Missing'}`);
+logger.info(`GEMINI_API_KEY: ${process.env.GEMINI_API_KEY ? '✅ Set (fallback enabled)' : '⚠️  Not set (no 429 fallback)'}`);
 logger.info(`NODE_ENV: ${process.env.NODE_ENV || 'production'}`);
 logger.info('================================\n');
 
@@ -379,7 +380,7 @@ bot.command('help', async (ctx) => {
         [
           {
             text: '🌐 PostgSail Website',
-            url: 'https://postgsail.org'
+            url: 'https://iot.openplotter.cloud'
           }
         ],
         [
@@ -559,14 +560,27 @@ bot.on('text', async (ctx) => {
       return;
     }
 
-    await ctx.reply(answer, { parse_mode: 'Markdown' });
+    try {
+      await ctx.reply(answer, { parse_mode: 'Markdown' });
+    } catch (parseError: any) {
+      if (parseError?.message?.includes('parse entities') || parseError?.message?.includes('Bad Request')) {
+        logger.warn('Markdown parse error, retrying as plain text', { error: parseError?.message });
+        await ctx.reply(answer);
+      } else {
+        throw parseError;
+      }
+    }
     logger.success('Query answered successfully', { userId: ctx.from.id, answerLength: answer.length });
   } catch (error) {
     await typing.stop();
     if (error instanceof AuthError) throw error;
     logger.error('Orchestration error', error);
     const userMessage = getUserFriendlyError(error);
-    await ctx.reply(userMessage, { parse_mode: 'Markdown' });
+    try {
+      await ctx.reply(userMessage, { parse_mode: 'Markdown' });
+    } catch {
+      await ctx.reply(userMessage);
+    }
   }
   }); // end withAuthRetry
 });
