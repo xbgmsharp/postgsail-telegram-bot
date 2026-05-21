@@ -1,20 +1,68 @@
 import { Mistral } from '@mistralai/mistralai';
+import { GoogleGenAI } from '@google/genai';
 import { MCPClient, MCPPrompt, MCPPromptMessage } from '../mcp/client';
 import { Logger } from '../utils/logger';
 
+const DOMAIN_KNOWLEDGE = `
+## PostgSail data model (use to interpret user queries and fill tool parameters)
+
+**logbook** — one entry per trip. Contains: distance (NM), duration, max/avg speed (knots),
+  departure and arrival place names, GPS track, sensor readings along route.
+  Query with: get_logs, get_last_log, get_log(id), get_stats
+
+**stays** — one entry per stationary period. Types: "Anchor", "Dock", "Mooring Buoy", "Unknown".
+  Contains: arrived, departed, duration (hours), moorage_id.
+  Query with: get_stays, get_stay(id)
+
+**moorages** — named places, auto-created by clustering stays within 300m.
+  Contains: name, GPS position, visit count, home_flag, stay_code.
+  Query with: get_moorages, get_moorage(id), find_anchorages_near(lat, lon)
+
+**monitoring** — live and historical sensor data.
+  Available sensors: SOG, COG, heading, true wind speed/direction, depth, water temp,
+  outside temp/pressure/humidity, inside temp/pressure/humidity, battery %, voltage,
+  solar power/voltage, tank level.
+  Query with: get_monitoring_live, get_monitoring_history
+
+## Units (always use these when filling tool parameters)
+- Distance: nautical miles (NM)
+- Speed: knots
+- Depth/radius: metres (convert: 1 NM = 1852 m)
+- Temperature: °C
+- Pressure: hPa
+
+## Term mapping (user says → tool parameter value)
+- "anchored" / "at anchor"           → stay_type: "Anchor"
+- "marina" / "pontoon" / "alongside" → stay_type: "Dock"
+- "mooring" / "buoy"                 → stay_type: "Mooring Buoy"
+- "last trip" / "last voyage"        → use get_last_log (no params needed)
+- "nearby" / "close to" / "near X"  → use find_anchorages_near with resolved lat/lon
+`;
+
 const logger = new Logger('OrchestrationAgent');
+
+function isRateLimitError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  const msg = (error as any).message ?? '';
+  const status = (error as any).status ?? (error as any).statusCode ?? 0;
+  return status === 429 || msg.includes('429') || msg.toLowerCase().includes('rate limit');
+}
 
 export class OrchestrationAgent {
   private mistral: Mistral;
+  private genai: GoogleGenAI | null;
   private mcpClient: MCPClient;
 
   private language: string;
 
   constructor(mistralApiKey: string, mcpUrl: string, userJwt: string, language: string = 'en') {
     this.mistral = new Mistral({ apiKey: mistralApiKey });
+    this.genai = process.env.GEMINI_API_KEY
+      ? new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY })
+      : null;
     this.mcpClient = new MCPClient(mcpUrl, userJwt);
     this.language = language;
-    logger.info('OrchestrationAgent initialized', { language });
+    logger.info('OrchestrationAgent initialized', { language, genaiEnabled: !!this.genai });
   }
 
   async processQuery(userQuery: string): Promise<string> {
@@ -25,41 +73,23 @@ export class OrchestrationAgent {
       this.mcpClient.listPrompts().catch(() => [] as MCPPrompt[])
     ]);
 
-    const candidateTools = this.filterToolsForQuery(userQuery, tools);
     const promptMessages = await this.resolvePrompt(userQuery, prompts);
 
     const history: any[] = [];
-    const usedTools = new Set<string>();
 
-    // Prefetch vessel context if needed
-    if (this.queryMentionsVessel(userQuery)) {
-      try {
-        logger.debug('Prefetching vessel data');
-        const vesselsResult = await this.mcpClient.callTool('get_vessels', {});
-        const extractedResult = this.extractToolResult(vesselsResult);
+    // Track tool+args pairs so the same tool can be called with different arguments
+    const usedToolCalls = new Set<string>();
+    const toolCallKey = (tool: string, args: any) => `${tool}:${JSON.stringify(args ?? {})}`;
 
-        history.push({
-          tool: 'get_vessels',
-          arguments: {},
-          result: extractedResult
-        });
-        usedTools.add('get_vessels');
-
-        logger.debug('Vessels prefetched', { result: extractedResult });
-      } catch (error) {
-        logger.error('Vessel prefetch error', error);
-      }
-    }
-
-    // Orchestration loop
-    for (let step = 0; step < 5; step++) {
+    // Orchestration loop — up to 8 steps to support multi-step reasoning
+    for (let step = 0; step < 8; step++) {
       logger.debug(`Orchestration step ${step + 1}`);
 
       const decision = await this.chooseNextAction(
         userQuery,
-        candidateTools,
+        tools,
         history,
-        usedTools,
+        usedToolCalls,
         promptMessages
       );
 
@@ -68,23 +98,16 @@ export class OrchestrationAgent {
       if (decision.type === 'final_answer') {
         logger.info('Final answer decision received, generating summary');
 
-        // Always generate a summary from history, don't return "done"
         if (history.length > 0) {
           return await this.summarizeAnswer(userQuery, history, promptMessages);
         }
 
-        // If no history, try to return message if it's not just "done"
         if (typeof decision.message === 'string' && decision.message !== 'done') {
           return decision.message;
         }
 
-        // If message is an object
         if (typeof decision.message === 'object') {
-          logger.debug('Decision message is object, summarizing');
-          history.push({
-            tool: 'final_data',
-            result: decision.message
-          });
+          history.push({ tool: 'final_data', result: decision.message });
           return await this.summarizeAnswer(userQuery, history, promptMessages);
         }
 
@@ -97,13 +120,14 @@ export class OrchestrationAgent {
       }
 
       if (decision.type === 'tool_call') {
-        if (usedTools.has(decision.tool)) {
-          logger.debug('Tool already used, skipping and continuing', { tool: decision.tool });
-          // Add a note to history so Mistral knows to try something different
+        const key = toolCallKey(decision.tool, decision.arguments);
+
+        if (usedToolCalls.has(key)) {
+          logger.debug('Exact tool+args already used, skipping', { tool: decision.tool });
           history.push({
             tool: decision.tool,
             arguments: decision.arguments,
-            error: 'Already called — choose a different tool or return final_answer'
+            error: 'Already called with these exact arguments — use different arguments or return final_answer'
           });
           continue;
         }
@@ -123,25 +147,23 @@ export class OrchestrationAgent {
             result: extractedResult
           });
 
-          usedTools.add(decision.tool);
+          usedToolCalls.add(key);
           logger.debug('Tool executed', { tool: decision.tool, resultPreview: JSON.stringify(extractedResult).substring(0, 200) });
         } catch (error) {
           const errMsg = error instanceof Error ? error.message : String(error);
           logger.error(`Tool ${decision.tool} failed`, error);
-          // Tell Mistral the tool failed so it can try an alternative
           history.push({
             tool: decision.tool,
             arguments: decision.arguments,
             error: `Tool failed: ${errMsg}`
           });
-          usedTools.add(decision.tool);
+          usedToolCalls.add(key);
         }
       }
     }
 
     logger.info('Generating summary from history after loop completion');
 
-    // If we have history, summarize it
     if (history.length > 0) {
       const summary = await this.summarizeAnswer(userQuery, history, promptMessages);
       logger.debug('Summary generated', { summary: summary.substring(0, 200) });
@@ -155,36 +177,73 @@ export class OrchestrationAgent {
     userQuery: string,
     tools: any[],
     history: any[],
-    usedTools: Set<string>,
+    usedToolCalls: Set<string>,
     promptMessages: MCPPromptMessage[] = []
   ): Promise<any> {
     const langNames: Record<string, string> = { en: 'English', fr: 'French', es: 'Spanish', de: 'German' };
     const responseLang = langNames[this.language] ?? 'English';
 
-    const systemPrompt = `You are the PostgSail Assistant for maritime vessel tracking.
+    const systemPrompt = `You are the PostgSail Assistant — an AI for maritime voyage tracking and sailing analytics.
 
-Your job is to decide the next action to answer the user's query.
+${DOMAIN_KNOWLEDGE}
 
-Rules:
-- Return ONLY valid JSON
-- Do NOT return formatted text in final_answer, just indicate you're done
-- Let the summary step handle formatting
-- Use available tools to gather data
-- Once you have enough data, return: {"type": "final_answer", "message": "done"}
-- The user's preferred language is ${responseLang}; use it for any "ask_user" messages
+## Your role
+Decide the NEXT single action to answer the user's query. Before choosing a tool, reason through:
+1. What does the user ultimately want?
+2. What data is required? Is any required data missing?
+3. Which tool fetches that data? Does it need an ID from a prior tool call?
+4. Have I collected everything needed, or should I call another tool?
 
-Response format:
-{"type": "tool_call", "tool": "name", "arguments": {}}
-{"type": "ask_user", "message": "question"}
+## Tool chaining patterns — follow these for complex queries
+- "daily summary / system summary / vessel summary / how is my boat" →
+    call ALL of: get_monitoring_live (current status), 
+    get_last_log (most recent voyage), get_monitoring_history(time_interval:"24 hours") (sensor trends).
+    Do NOT ask for clarification — gather all four then summarize.
+- "my last trip / voyage / log" → call get_last_log
+- "trip details for trip X" → call get_logs to find the ID, then get_log(id)
+- "where is my boat / current position" → get_monitoring_live
+- "what were conditions during voyage X" → get_log(id) for sensor data
+- "statistics / how far have I sailed / sailing summary" → get_stats with optional date range
+- "find anchorages near [place]" → resolve the place name to lat/lon from your knowledge, then find_anchorages_near
+- "find anchorages near my last stop" → get_last_log to get destination coordinates, then find_anchorages_near
+- "moorage details / visits to moorage X" → get_moorages to find ID, then get_moorage(id) and get_moorage_stays(id)
+- "all trips from/to [port]" → get_moorages to find moorage ID, then get_moorage_arrivals_departures(id)
+- "my achievements / badges" → get_badges
+- "sensor history / conditions over last N days" → get_monitoring_history(time_interval)
+- "vessel info / boat specs" → get_vessel
+- "what can you do / what do you know about me / what sailing data is available" → get_initial_context
+- Multi-step example: "compare this month to last month" → get_stats twice with different date ranges
+
+## Key rules
+- Return ONLY valid JSON, no markdown, no explanation
+- Pass date ranges as ISO 8601 strings (e.g. "2025-01-01", "2025-12-31")
+- The same tool MAY be called again with DIFFERENT arguments (e.g., get_stats for two date ranges)
+- Only block calls with the exact same tool name AND exact same arguments as already used
+- For geographical place names, resolve lat/lon from your own knowledge before calling find_anchorages_near
+- Use get_initial_context when the user asks what you can do, what data you have about them, or when the query is broad and needs overall sailing context to answer well
+- Return final_answer only when you have sufficient data to answer the query completely
+- Only return ask_user if the query is genuinely ambiguous AND no tool can help without clarification — never ask when summary/status queries can be answered with available tools
+
+Response format (exactly one of):
+{"type": "tool_call", "tool": "<name>", "arguments": {<args>}}
+{"type": "ask_user", "message": "<question in ${responseLang}>"}
 {"type": "final_answer", "message": "done"}`;
 
-    // Truncate history to avoid bloating the prompt on long loops
-    const recentHistory = history.slice(-8);
+    // Keep last 10 history entries to stay within context
+    const recentHistory = history.slice(-10);
 
     const userPrompt = `Query: "${userQuery}"
-Tools: ${JSON.stringify(tools.map(t => ({ name: t.name, description: t.description, inputSchema: t.inputSchema })))}
-Used: ${JSON.stringify([...usedTools])}
-History: ${JSON.stringify(recentHistory)}`;
+
+Available tools:
+${JSON.stringify(tools.map(t => ({ name: t.name, description: t.description, inputSchema: t.inputSchema })), null, 2)}
+
+Already called (tool:args):
+${JSON.stringify([...usedToolCalls])}
+
+Data collected so far:
+${JSON.stringify(recentHistory, null, 2)}
+
+What is the next action?`;
 
     const messages: any[] = [{ role: 'system', content: systemPrompt }];
     for (const pm of promptMessages) {
@@ -211,7 +270,32 @@ History: ${JSON.stringify(recentHistory)}`;
       logger.debug('Mistral decision', { decision });
       return decision;
     } catch (error) {
+      if (isRateLimitError(error) && this.genai) {
+        logger.warn('Mistral rate limited, falling back to Gemini for decision');
+        return await this.chooseNextActionGemini(messages);
+      }
       logger.error('Decision error', error);
+      return { type: 'final_answer', message: 'done' };
+    }
+  }
+
+  private async chooseNextActionGemini(messages: any[]): Promise<any> {
+    try {
+      const prompt = messages.map(m => `[${m.role}]: ${m.content}`).join('\n\n');
+      const result = await this.genai!.models.generateContent({
+        model: "gemini-flash-latest",
+        contents: [{ role: 'user', parts: [{ text: prompt }] }]
+      });
+      const text = result?.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!text) {
+        logger.error('Gemini returned no text for decision');
+        return { type: 'final_answer', message: 'done' };
+      }
+      const decision = JSON.parse(text);
+      logger.debug('Gemini decision', { decision });
+      return decision;
+    } catch (error) {
+      logger.error('Gemini decision error', error);
       return { type: 'final_answer', message: 'done' };
     }
   }
@@ -220,18 +304,25 @@ History: ${JSON.stringify(recentHistory)}`;
     const langNames: Record<string, string> = { en: 'English', fr: 'French', es: 'Spanish', de: 'German' };
     const responseLang = langNames[this.language] ?? 'English';
 
-    const systemPrompt = `You are the PostgSail Assistant for maritime vessel tracking. Create a concise, well-formatted Telegram message answering the user's query based on the collected data.
+    const systemPrompt = `You are the PostgSail Assistant — a maritime voyage tracking AI. Compose a clear, helpful Telegram message that directly answers the user's question using the collected data.
 
-Keep it:
-- Directly answer the user's question — do not always use a vessel summary format
-- Clear and readable on mobile
-- Use bullet points for lists
-- Include relevant emojis for visual appeal
-- Highlight the most important values
-- Use Markdown formatting (bold with **, italic with _, code with \`)
-- Write the entire response in ${responseLang}
+## Formatting rules
+- Write entirely in ${responseLang}
+- Answer the user's specific question — do not default to a generic vessel summary
+- Use Telegram Markdown: **bold** for labels, _italic_ for emphasis, \`code\` for IDs/versions
+- Maritime emojis: ⛵ 🚢 ⚓ 🧭 🌊 🗺️ 📍 ⏱️ 🌬️ 🔋 ☀️ 🏆
+- Numbers with units: "12.5 nm", "3h 20min", "6.2 kts", "28°C"
+- Convert ISO durations: PT2H30M → 2h 30min, P1DT4H → 1d 4h
+- Dates: "Mon 19 May 2025" style; include time when relevant
+- Coordinates: show as decimal degrees with 4 decimal places and N/S/E/W
+- Use bullet lists for multiple items; bold the key metric on each line
+- If comparing periods, show both values side-by-side
+- Omit fields that are null or missing — don't write "N/A"
+- Mark personal records or achievements with 🏆
+- For anchorage suggestions, include name, type, and distance if available
+- Keep it mobile-friendly and scannable — lead with the most important info
 
-Return ONLY the formatted message text, no JSON.`;
+Return ONLY the formatted message text, no JSON, no preamble.`;
 
     const historyText = JSON.stringify(history, null, 2);
     logger.debug('Summarizing with history', { historyLength: historyText.length });
@@ -241,7 +332,10 @@ Return ONLY the formatted message text, no JSON.`;
       const text = pm.content.type === 'text' ? (pm.content as any).text : JSON.stringify(pm.content);
       messages.push({ role: pm.role, content: text });
     }
-    messages.push({ role: 'user', content: `User query: "${userQuery}"\n\nCollected data:\n${historyText}\n\nProvide a helpful summary:` });
+    messages.push({
+      role: 'user',
+      content: `User query: "${userQuery}"\n\nCollected data:\n${historyText}\n\nProvide a helpful, well-formatted answer:`
+    });
 
     try {
       const response = await this.mistral.chat.complete({
@@ -256,7 +350,6 @@ Return ONLY the formatted message text, no JSON.`;
         return 'Sorry, I had trouble generating a summary.';
       }
 
-      // Handle if content is not a string
       if (typeof content !== 'string') {
         logger.error('Content is not a string', { content, type: typeof content });
         return 'Sorry, I had trouble formatting the response.';
@@ -265,7 +358,31 @@ Return ONLY the formatted message text, no JSON.`;
       logger.debug('Summary created', { length: content.length });
       return content;
     } catch (error) {
+      if (isRateLimitError(error) && this.genai) {
+        logger.warn('Mistral rate limited, falling back to Gemini for summary');
+        return await this.summarizeAnswerGemini(messages);
+      }
       logger.error('Summary error', error);
+      return 'Sorry, I had trouble summarizing the results.';
+    }
+  }
+
+  private async summarizeAnswerGemini(messages: any[]): Promise<string> {
+    try {
+      const prompt = messages.map(m => `[${m.role}]: ${m.content}`).join('\n\n');
+      const result = await this.genai!.models.generateContent({
+        model: "gemini-flash-latest",
+        contents: [{ role: 'user', parts: [{ text: prompt }] }]
+      });
+      const text = result?.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!text) {
+        logger.error('Gemini returned no text for summary');
+        return 'Sorry, I had trouble summarizing the results.';
+      }
+      logger.debug('Gemini summary created', { length: text.length });
+      return text;
+    } catch (error) {
+      logger.error('Gemini summary error', error);
       return 'Sorry, I had trouble summarizing the results.';
     }
   }
@@ -294,65 +411,6 @@ Return ONLY the formatted message text, no JSON.`;
     }
   }
 
-  private filterToolsForQuery(query: string, tools: any[]): any[] {
-    const queryLower = query.toLowerCase();
-
-    // PostgSail domain keywords
-    const keywords = {
-      vessel: ['vessel', 'boat', 'ship', 'my boat', 'summary'],
-      monitoring: ['status', 'live', 'current', 'now', 'monitoring', 'position', 'where'],
-      logs: ['trip', 'log', 'journey', 'sailed', 'voyage', 'history', 'track'],
-      moorages: ['moorage', 'anchor', 'dock', 'port', 'marina', 'stayed'],
-      stays: ['stay', 'stopped', 'anchored', 'docked'],
-      stats: ['statistics', 'stats', 'summary', 'total', 'count'],
-      settings: ['settings', 'configuration', 'preferences']
-    };
-
-    // Score tools based on relevance
-    const scored = tools.map(tool => {
-      let score = 0;
-      const toolName = (tool.name || '').toLowerCase();
-      const toolDesc = (tool.description || '').toLowerCase();
-
-      // Check keyword matches
-      for (const [category, terms] of Object.entries(keywords)) {
-        if (terms.some(term => queryLower.includes(term))) {
-          if (toolName.includes(category)) score += 10;
-          if (toolDesc.includes(category)) score += 5;
-        }
-      }
-
-      // Direct name matches
-      if (queryLower.split(/\s+/).some(word => toolName.includes(word))) {
-        score += 3;
-      }
-
-      return { tool, score };
-    });
-
-    // Return top 12 tools, or all if no scores
-    const filtered = scored.filter(item => item.score > 0);
-    if (filtered.length === 0) {
-      logger.debug('No tool filtering match, using first 12');
-      return tools.slice(0, 12);
-    }
-
-    const selectedTools = filtered
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 12)
-      .map(item => item.tool);
-
-    logger.debug('Tools filtered', { count: selectedTools.length });
-    return selectedTools;
-  }
-
-  private queryMentionsVessel(query: string): boolean {
-    const q = query.toLowerCase();
-    const mentions = ['vessel', 'boat', 'ship', 'summary'].some(word => q.includes(word));
-    logger.debug('Query mentions vessel?', { mentions, query: q });
-    return mentions;
-  }
-
   private extractToolResult(result: any): any {
     logger.debug('Extracting tool result', { resultType: typeof result });
 
@@ -365,7 +423,7 @@ Return ONLY the formatted message text, no JSON.`;
           try {
             const parsed = JSON.parse(item.text);
             logger.debug('Parsed text content', { parsed });
-            return parsed;
+            return this.stripGeoJSONFeatures(parsed);
           } catch {
             logger.debug('Returning raw text content');
             return item.text;
@@ -374,6 +432,33 @@ Return ONLY the formatted message text, no JSON.`;
       }
     }
 
-    return result;
+    return this.stripGeoJSONFeatures(result);
+  }
+
+  /**
+   * Recursively finds GeoJSON FeatureCollections and replaces their features array
+   * with an empty array + a count hint, to avoid overflowing the LLM context window.
+   */
+  private stripGeoJSONFeatures(data: any): any {
+    if (!data || typeof data !== 'object') return data;
+
+    if (Array.isArray(data)) {
+      return data.map(item => this.stripGeoJSONFeatures(item));
+    }
+
+    if (data.type === 'FeatureCollection' && Array.isArray(data.features)) {
+      const count = data.features.length;
+      if (count > 0) {
+        logger.debug('Stripping GeoJSON features', { count });
+      }
+      const { features: _dropped, ...rest } = data;
+      return { ...rest, features: [], _features_count: count };
+    }
+
+    const out: any = {};
+    for (const key of Object.keys(data)) {
+      out[key] = this.stripGeoJSONFeatures(data[key]);
+    }
+    return out;
   }
 }
