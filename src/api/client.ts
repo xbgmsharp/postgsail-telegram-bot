@@ -43,7 +43,7 @@ export class ApiClient {
     const headers: Record<string, string> = {
       Accept: 'application/json',
       'Content-Type': 'application/json',
-      'User-Agent': 'postgsail.telegram.bot v0.3.0',
+      'User-Agent': 'postgsail.telegram.bot v0.3.1',
       ...(options.headers as Record<string, string>),
     };
 
