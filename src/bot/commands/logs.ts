@@ -203,7 +203,7 @@ export async function exportLogHandler(ctx: any) {
 
     if (format === 'geojson') {
       const result = await apiClient.exportLogGeoJSON(logId) as any;
-      fileContent = JSON.stringify(result.data ?? result, null, 2);
+      fileContent = JSON.stringify(result.data ?? result);
       filename = `log_${logId}.geojson`;
       mimeType = 'application/geo+json';
     } else if (format === 'kml') {
@@ -222,7 +222,14 @@ export async function exportLogHandler(ctx: any) {
     await typing.stop();
 
     const buffer = Buffer.from(fileContent, 'utf-8');
-    await ctx.replyWithDocument({ source: buffer, filename }, { caption: `📥 ${filename}` });
+    logger.info('Sending export file', { filename, sizeBytes: buffer.length });
+    try {
+      await ctx.replyWithDocument({ source: buffer, filename }, { caption: `📥 ${filename}` });
+    } catch (uploadError: any) {
+      logger.warn('Direct upload failed, sending web link instead', { filename, error: uploadError?.message });
+      const webUrl = process.env.POSTGSAIL_WEB_URL || 'https://app.postgsail.com';
+      await ctx.reply(`📥 The file is too large to send directly\\. [Download ${filename}](${webUrl}/logs/${logId})`, { parse_mode: 'MarkdownV2' });
+    }
   } catch (error) {
     await typing.stop();
     if (error instanceof AuthError) throw error;
