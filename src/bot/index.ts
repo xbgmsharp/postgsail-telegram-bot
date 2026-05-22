@@ -15,6 +15,7 @@ import dotenv from 'dotenv';
 import { ApiClient } from '../api/client';
 import { Logger } from '../utils/logger';
 import { t } from '../i18n';
+import { toTelegramMarkdown } from '../utils/format';
 
 // Load environment variables
 dotenv.config();
@@ -29,6 +30,7 @@ logger.info(`POSTGSAIL_WEB_URL: ${process.env.POSTGSAIL_WEB_URL || 'NOT SET'}`);
 logger.info(`POSTGSAIL_MCP_URL: ${process.env.POSTGSAIL_MCP_URL || 'NOT SET (MCP disabled)'}`);
 logger.info(`MISTRAL_API_KEY: ${process.env.MISTRAL_API_KEY ? '✅ Set' : '❌ Missing'}`);
 logger.info(`GEMINI_API_KEY: ${process.env.GEMINI_API_KEY ? '✅ Set (fallback enabled)' : '⚠️  Not set (no 429 fallback)'}`);
+logger.info(`COHERE_API_KEY: ${process.env.COHERE_API_KEY ? '✅ Set (fallback enabled)' : '⚠️  Not set (no 429 fallback)'}`);
 logger.info(`NODE_ENV: ${process.env.NODE_ENV || 'production'}`);
 logger.info('================================\n');
 
@@ -535,10 +537,12 @@ bot.on('text', async (ctx) => {
       process.env.MISTRAL_API_KEY!,
       process.env.POSTGSAIL_MCP_URL!,
       ctx.session.token!,
-      ctx.session.language
+      ctx.session.language,
+      ctx.session.sailorContext ?? null
     );
 
     const answer = await agent.processQuery(text);
+    ctx.session.sailorContext = agent.getSailorContext();
 
     await typing.stop();
 
@@ -560,15 +564,11 @@ bot.on('text', async (ctx) => {
       return;
     }
 
+    const formatted = toTelegramMarkdown(answer);
     try {
-      await ctx.reply(answer, { parse_mode: 'Markdown' });
-    } catch (parseError: any) {
-      if (parseError?.message?.includes('parse entities') || parseError?.message?.includes('Bad Request')) {
-        logger.warn('Markdown parse error, retrying as plain text', { error: parseError?.message });
-        await ctx.reply(answer);
-      } else {
-        throw parseError;
-      }
+      await ctx.reply(formatted, { parse_mode: 'Markdown' });
+    } catch {
+      await ctx.reply(formatted);
     }
     logger.success('Query answered successfully', { userId: ctx.from.id, answerLength: answer.length });
   } catch (error) {

@@ -23,5 +23,25 @@ function formatDuration(interval: string): string {
   }
 }
 
-export { formatDuration };
+/**
+ * Convert LLM-generated standard Markdown to Telegram Markdown v1.
+ * Telegram v1 supports: *bold*, _italic_, `code`, ```pre```, [text](url)
+ * It does NOT support: ### headers, --- rules, **bold**, __italic__
+ */
+function toTelegramMarkdown(text: string): string {
+  return text
+    // Remove horizontal rules
+    .replace(/^---+$/gm, '')
+    // Convert ### / ## / # headings → *bold*
+    .replace(/^#{1,3}\s+(.+)$/gm, '*$1*')
+    // Convert **bold** → *bold*
+    .replace(/\*\*(.+?)\*\*/g, '*$1*')
+    // Convert __italic__ → _italic_
+    .replace(/__(.+?)__/g, '_$1_')
+    // Collapse 3+ consecutive blank lines to 2
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+export { formatDuration, toTelegramMarkdown };
 

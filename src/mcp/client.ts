@@ -133,6 +133,7 @@ export class MCPClient {
     await this.initialize();
     const result = await this.rpc('tools/list', {});
     const tools = Array.isArray(result.tools) ? result.tools : result;
+    logger.debug('MCP raw tools response', { tools: JSON.stringify(tools, null, 2) });
     logger.success('MCP tools listed', { count: tools.length });
     return tools;
   }
