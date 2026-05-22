@@ -10,6 +10,7 @@ export interface SessionData extends Scenes.SceneSession {
   language?: string;
   awaitingInput?: 'username' | 'language' | null;
   isReturningUser?: boolean;
+  sailorContext?: any;
 }
 
 export interface MyContext extends Context {
