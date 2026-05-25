@@ -109,7 +109,6 @@ export class OrchestrationAgent {
 
       const response = await this.mistral.chat.complete({
         model: 'mistral-large-latest',
-        temperature: 0.2,
         messages,
         tools: mistralTools,
         toolChoice: 'auto'
