@@ -309,12 +309,14 @@ export class ApiClient {
 
   async getStats() {
     logger.info('Fetching statistics');
-    return this.requestRPC('rpc/stats_fn');
+    return this.requestRPC('rpc/stats_fn', {
+        method: 'POST'
+    });
   }
 
   async getStatsLogs() {
     logger.info('Fetching log statistics');
-    return this.requestRPC('rpc/graph_stats_logs_fn');
+    return this.requestRPC('rpc/stats_logs_fn');
   }
 
   async getLogsByDay() {
