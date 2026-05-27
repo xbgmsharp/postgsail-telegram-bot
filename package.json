@@ -26,7 +26,7 @@
   "license": "MIT",
   "dependencies": {
     "@google/genai": "^2.5.0",
-    "@mistralai/mistralai": "^2.1.2",
+    "@mistralai/mistralai": "^2.2.5",
     "cohere-ai": "^8.0.0",
     "dotenv": "^16.4.5",
     "telegraf": "^4.16.3",
