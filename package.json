@@ -25,7 +25,7 @@
   "author": "Francois Lacroix <xbgmsharp@gmail.com>",
   "license": "MIT",
   "dependencies": {
-    "@google/genai": "^2.5.0",
+    "@google/genai": "^2.8.0",
     "@mistralai/mistralai": "^2.1.2",
     "cohere-ai": "^8.0.0",
     "dotenv": "^16.4.5",
