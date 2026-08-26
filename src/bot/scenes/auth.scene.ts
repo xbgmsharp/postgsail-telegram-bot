@@ -89,50 +89,46 @@ authScene.on('text', async (ctx) => {
       return;
     }
 
-    if (userOtp === ctx.session.otp) {
-      await ctx.replyWithChatAction('typing');
+    await ctx.replyWithChatAction('typing');
 
-      const payload = {
-        token: userOtp,
-        telegram_obj: {
-          from: {
-            id: ctx.from!.id,
-            is_bot: ctx.from!.is_bot,
-            first_name: ctx.from!.first_name,
-            language_code: ctx.from!.language_code
-          },
-          chat: {
-            id: ctx.chat!.id,
-            type: ctx.chat!.type
-          },
-          date: new Date().toISOString()
-        }
-      };
-
-      try {
-        const validationResult = await apiClient.validateOTP(payload);
-
-        if (validationResult.success) {
-          ctx.session.token = await apiClient.getToken(ctx.from!.id);
-          ctx.session.authenticated = true;
-
-          logger.success('User authenticated successfully', {
-            userId: ctx.from!.id,
-            email: ctx.session.email
-          });
-
-          await setAuthenticatedCommands(ctx);
-          await ctx.reply(t('auth.success', lang));
-          return ctx.scene.leave();
-        } else {
-          await ctx.reply(t('auth.otpInvalid', lang));
-        }
-      } catch (error) {
-        logger.error('OTP validation error', error);
-        await ctx.reply(t('auth.otpValidateFailed', lang));
+    const payload = {
+      token: userOtp,
+      telegram_obj: {
+        from: {
+          id: ctx.from!.id,
+          is_bot: ctx.from!.is_bot,
+          first_name: ctx.from!.first_name,
+          language_code: ctx.from!.language_code
+        },
+        chat: {
+          id: ctx.chat!.id,
+          type: ctx.chat!.type
+        },
+        date: new Date().toISOString()
       }
-    } else {
-      await ctx.reply(t('auth.otpInvalid', lang));
+    };
+
+    try {
+      const validationResult = await apiClient.validateOTP(payload);
+
+      if (validationResult.success) {
+        ctx.session.token = await apiClient.getToken(ctx.from!.id);
+        ctx.session.authenticated = true;
+
+        logger.success('User authenticated successfully', {
+          userId: ctx.from!.id,
+          email: ctx.session.email
+        });
+
+        await setAuthenticatedCommands(ctx);
+        await ctx.reply(t('auth.success', lang));
+        return ctx.scene.leave();
+      } else {
+        await ctx.reply(t('auth.otpInvalid', lang));
+      }
+    } catch (error) {
+      logger.error('OTP validation error', error);
+      await ctx.reply(t('auth.otpValidateFailed', lang));
     }
   }
 });
