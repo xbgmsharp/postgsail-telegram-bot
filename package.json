@@ -30,7 +30,7 @@
     "cohere-ai": "^8.0.0",
     "dotenv": "^16.4.5",
     "telegraf": "^4.16.3",
-    "uuid": "^10.0.0"
+    "uuid": "^14.0.1"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
