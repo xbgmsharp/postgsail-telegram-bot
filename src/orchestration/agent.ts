@@ -108,7 +108,7 @@ export class OrchestrationAgent {
       });
 
       const response = await this.mistral.chat.complete({
-        model: 'mistral-large-latest',
+        model: 'mistral-small-latest',
         messages,
         tools: mistralTools,
         toolChoice: 'auto'
