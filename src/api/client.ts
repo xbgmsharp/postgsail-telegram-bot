@@ -189,7 +189,7 @@ export class ApiClient {
 
   async getVessel() {
     logger.info('Fetching vessel');
-    return this.requestRPC('rpc/vessel_fn');
+    return this.request('vessel_view');
   }
 
   async getVesselActivity() {
